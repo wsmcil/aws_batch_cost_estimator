@@ -20,22 +20,22 @@ import re
 import pdb
 
 # Configuration variables
-fileInput='cmdb.csv'
-fileOutput='awsbom.csv'
+fileInput='qry_x86Servers_CapacityNumbers.csv'
+fileOutput='awsbom_fca.csv'
 
 # Input column mappings
 
 # Column which indicates source cores and peak load
-srcCores = 'CPU'
-srcCPUUsage = 'Peak CPU Load'
+srcCores = '# of CPUs'
+srcCPUUsage = 'PeakCPU%'
 
 # Column which indicates peak memory useage in MB
 # If srcMemUsed is blank or zero, the script will use srcMemProvsioned as the target memory
-srcMemProvisioned = 'Mem (MB)'
-srcMemUsed = 'Peak Mem Used'
+srcMemProvisioned = 'Memory'
+srcMemUsed = 'MemUsed'
 
 # Columns indicating environment (dev, test, prod, etc.)
-srcEnv = 'Current State Services'
+srcEnv = 'Environment'
 DEV = 'Dev'
 QA = 'QA'
 TEST = 'Test'
@@ -53,8 +53,8 @@ awsLocASIA="Asia Pacific (Seoul)"
 
 # OS platforms for AWS.  The customer source is all over the board and requires some manual
 # tweaking.  So far only coded for Windows, RHEL, and Amazon Linux (default)
-srcOS='Platform'
-srcOSVer='OS Ver'
+srcOS='OS'
+srcOSVer='OS'
 awsWindows="Windows"
 awsRHEL="RHEL"
 awsDefault="Linux"
@@ -81,7 +81,7 @@ awsAurora="Aurora MySQL"
 # Fixed rates for block storage
 ec2EBSUnitCost=.151
 rdsEBSUnitCost=.116
-srcBlockStorage='Used Size (GB)'
+srcBlockStorage='Disk (GB)'
 
 # Open input file, read into frame
 print("Reading input file....")
@@ -108,7 +108,7 @@ dfCMDB['cores_calc']=dfCMDB['cores_calc'].round(decimals=0)
 # Correct missing used memory
 for index in dfCMDB.index.tolist():
     if dfCMDB.loc[index, srcMemUsed] == 0:
-        dfCMDB.loc[index, srcMemUsed] = dfCMDB.loc[index, srcMemProvisioned] / 1000
+        dfCMDB.loc[index, srcMemUsed] = dfCMDB.loc[index, srcMemProvisioned]
         
 # Create family inference column
 print("Determining EC2 instance families...")
@@ -158,9 +158,9 @@ dfCMDB['AWS_OS'] = ""
 
 # This code required manual tweaking to account for the different representations of RedHat
 for index in dfCMDB.index.tolist():
-    if "WINDOWS" in dfCMDB.loc[index, srcOS]:
+    if "Windows" in dfCMDB.loc[index, srcOS]:
         dfCMDB.loc[index, 'AWS_OS'] = awsWindows
-    elif "LINUX" in dfCMDB.loc[index, srcOS]:
+    elif "Linux" in dfCMDB.loc[index, srcOS]:
         if ("RHEL" in dfCMDB.loc[index, srcOSVer] or
             "Red" in dfCMDB.loc[index, srcOSVer] or
             "RED" in dfCMDB.loc[index, srcOSVer]):
@@ -179,11 +179,6 @@ print('Pricing EC2 instances....')
 # Core matching and pricing code
 # Match calculated capacity requirements to EC2 instance types
 # Price resulting EC2 instance types by hour, year, and 3-year RIs
-
-import boto3
-import json
-import re
-import pandas
 
 regions = {awsDFLT, awsEU, awsASIA}
 families = {"m", "c", "r", "t"}
@@ -341,7 +336,7 @@ for region in regions:
                 instance=0
 
                 while ((not(found)) & (instance < len(dfInstanceList_sorted))):
-                    if ((dfInstanceList_sorted.loc[instance, 'memory'] >= dfCMDB.loc[index, 'Peak Mem Used']) and (dfInstanceList_sorted.loc[instance, 'vcpu'] >= dfCMDB.loc[index, 'cores_calc'])):
+                    if ((dfInstanceList_sorted.loc[instance, 'memory'] >= dfCMDB.loc[index, srcMemUsed]) and (dfInstanceList_sorted.loc[instance, 'vcpu'] >= dfCMDB.loc[index, 'cores_calc'])):
                         found = True
                         dfCMDB.loc[index, 'ec2_instance_type'] = dfInstanceList_sorted.loc[instance, 'instanceType']
                         dfCMDB.loc[index, 'one_hr_rate'] = dfInstanceList_sorted.loc[instance, 'one_hr_rate']
