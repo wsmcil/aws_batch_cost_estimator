@@ -17,6 +17,7 @@ import pandas as pd
 import json
 import boto3
 import re
+import pdb
 
 # Configuration variables
 fileInput='cmdb.csv'
@@ -49,6 +50,22 @@ awsASIA="ap-northeast-2"
 srcEU='EU'
 awsEU='eu-central-1'
 awsDFLT='us-east-1'
+awsLocDFLT="US East (N. Virginia)"
+awsLocEU="EU (Frankfurt)"
+awsLocASIA="Asia Pacific (Seoul)"
+
+# OS platforms for AWS.  The customer source is all over the board and requires some manual
+# tweaking.  So far only coded for Windows, RHEL, and Amazon Linux (default)
+srcOS='Platform'
+srcOSVer='OS Ver'
+awsWindows="Windows"
+awsRHEL="REHL"
+awsDefault="Linux"
+
+# Compute families.  These are super families.  X and T are actually subfamilies in the pricing API
+awsComputeOptimized="Compute optimized"
+awsMemoryOptimized="Memory optimized"
+awsGeneralPurpose="General purpose"
 
 # Open input file, read into frame
 print("Reading input file....")
@@ -118,25 +135,24 @@ for index in dfCMDB.index.tolist():
     else:
         dfCMDB.loc[index, 'AWS_Region'] = awsDFLT
         
-result = input("Wait")
-        
 # Create AWS OS column, search for key words in source os to map to EC2 platform
 
 print ("Determining OS platforms...")
 dfCMDB['AWS_OS'] = ""
 
+# This code required manual tweaking to account for the different representations of RedHat
 for index in dfCMDB.index.tolist():
-    if "WINDOWS" in dfCMDB.loc[index, 'Platform']:
-        dfCMDB.loc[index, 'AWS_OS'] = "Windows"
-    elif "LINUX" in dfCMDB.loc[index, 'Platform']:
-        if ("RHEL" in dfCMDB.loc[index, 'OS Ver'] or
-            "Red" in dfCMDB.loc[index, 'OS Ver'] or
-            "RED" in dfCMDB.loc[index, 'OS Ver']):
-                dfCMDB.loc[index, 'AWS_OS'] = "RHEL"
+    if "WINDOWS" in dfCMDB.loc[index, srcOS]:
+        dfCMDB.loc[index, 'AWS_OS'] = awsWindows
+    elif "LINUX" in dfCMDB.loc[index, srcOS]:
+        if ("RHEL" in dfCMDB.loc[index, srcOSVer] or
+            "Red" in dfCMDB.loc[index, srcOSVer] or
+            "RED" in dfCMDB.loc[index, srcOSVer]):
+                dfCMDB.loc[index, 'AWS_OS'] = awsRHEL
         else:
-            dfCMDB.loc[index, 'AWS_OS'] = "Linux"
+            dfCMDB.loc[index, 'AWS_OS'] = awsDefault
     else:
-        dfCMDB.loc[index, 'AWS_OS'] = "Linux"
+        dfCMDB.loc[index, 'AWS_OS'] = awsDefault
         
 # Core matching and pricing code
 # Match calculated capacity requirements to EC2 instance types
@@ -144,32 +160,41 @@ for index in dfCMDB.index.tolist():
 
 print('Pricing EC2 instances....')
 
-regions = {"us-east-1", "eu-central-1", "ap-southeast-1"}
+# Core matching and pricing code
+# Match calculated capacity requirements to EC2 instance types
+# Price resulting EC2 instance types by hour, year, and 3-year RIs
+
+import boto3
+import json
+import re
+import pandas
+
+regions = {awsDFLT, awsEU, awsASIA}
 families = {"m", "c", "r", "t"}
-oses = {"Windows", "RHEL", "Linux"}
+oses = {awsWindows, awsRHEL, awsDefault}
 
 for region in regions:
-    print('Pricing ' + region)
+    print("Region " +region)
     for os in oses:
-        print('Pricing ' + os)
+        print("OS " + os)
         for family in families:
-            print('Pricing ' + family)
+            print("Family " +family)
             # Lets get specific and only get the license included, no pre-installed software, current generation, etc.
             client = boto3.client('pricing')
             
-            if region == "us-east-1":
-                location = "US East (N. Virginia)"
-            elif region == "eu-central-1":
-                location = "EU (Frankfurt)"
+            if region == awsDFLT:
+                location = awsLocDFLT
+            elif region == awsEU:
+                location = awsLocEU
             else:
-                location = "Asia Pacific (Singapore)"
+                location = awsLocASIA
             
             if family == "c":
-                instanceFamily = "Compute optimized"
+                instanceFamily = awsComputeOptimized
             elif family == "r":
-                instanceFamily = "Memory optimized"
+                instanceFamily = awsMemoryOptimized
             else:
-                instanceFamily = "General purpose"
+                instanceFamily = awsGeneralPurpose
     
             response = client.get_products(
                 Filters=[
@@ -218,7 +243,7 @@ for region in regions:
 
 
             # Lets make a dataframe with the EC2 instance choices that are rhel and memory optimized
-            d={'instanceType':[], 'memory':[], 'family':[], 'one_hr_rate':[], 'one_yr_rate':[], 'three_yr_rate':[]}
+            d={'instanceType':[], 'memory':[], 'family':[], 'one_hr_rate':[], 'one_yr_rate':[], 'three_yr_rate':[], 'vcpu':[]}
             dfInstanceList=pd.DataFrame(data=d)
             index=0
 
@@ -227,17 +252,18 @@ for region in regions:
                 itemAttributes=jItem['product']['attributes']
                 instanceType=itemAttributes['instanceType']
                 instancefamily=instanceType[0:2]
-                vcpu=itemAttributes['vcpu']
-                sku=jItem['product']['sku']
-                ondemandterm="JRTCKXETXF"
-                ondemandratecode="6YS6EN2CT7"
-                oneyearterm="6QCMYABX3D"
-                oneyearratecode="2TG2D8R56U"
-                threeyearterm="NQ3QZPMQV9"
-                threeyearratecode="2TG2D8R56U"
-                onehr_rate=jItem['terms']['OnDemand'][sku+"."+ondemandterm]['priceDimensions'][sku+"."+ondemandterm+"."+ondemandratecode]['pricePerUnit']['USD']
-                oneyr_rate=jItem['terms']['Reserved'][sku+"."+oneyearterm]['priceDimensions'][sku+"."+oneyearterm+"."+oneyearratecode]['pricePerUnit']['USD']
-                threeyr_rate=jItem['terms']['Reserved'][sku+"."+threeyearterm]['priceDimensions'][sku+"."+threeyearterm+"."+threeyearratecode]['pricePerUnit']['USD']
+                if ((instancefamily != "c3") and (instancefamily != "m3")):
+                    vcpu=itemAttributes['vcpu']
+                    sku=jItem['product']['sku']
+                    ondemandterm="JRTCKXETXF"
+                    ondemandratecode="6YS6EN2CT7"
+                    oneyearterm="6QCMYABX3D"
+                    oneyearratecode="2TG2D8R56U"
+                    threeyearterm="NQ3QZPMQV9"
+                    threeyearratecode="2TG2D8R56U"
+                    onehr_rate=jItem['terms']['OnDemand'][sku+"."+ondemandterm]['priceDimensions'][sku+"."+ondemandterm+"."+ondemandratecode]['pricePerUnit']['USD']
+                    oneyr_rate=jItem['terms']['Reserved'][sku+"."+oneyearterm]['priceDimensions'][sku+"."+oneyearterm+"."+oneyearratecode]['pricePerUnit']['USD']
+                    threeyr_rate=jItem['terms']['Reserved'][sku+"."+threeyearterm]['priceDimensions'][sku+"."+threeyearterm+"."+threeyearratecode]['pricePerUnit']['USD']
                 
                 # Drop the old lines
                 if (family == "t"):
@@ -254,7 +280,7 @@ for region in regions:
                         index=index+1
 
 
-                elif (region == "us-east-1"):
+                elif (region == awsDFLT):
                     if ((instancefamily != "m4") and (instancefamily != "m3") and (instancefamily != "c4") and (instancefamily !="c3") and (instancefamily != "r3") and (instancefamily != "t2")):
                         memoryelement=itemAttributes['memory']
                         memory=re.sub('[^0-9]','', memoryelement)
@@ -307,6 +333,10 @@ for region in regions:
                         dfCMDB.loc[index, 'three_yr_rate'] = dfInstanceList_sorted.loc[instance, 'three_yr_rate']
 
                     instance = instance +1
+                    
+stop = input("Wait")
+                    
+# Review and price RDS                    
 # Map source DB to AWS_DB
 
 dfCMDB['AWS_DB'] = "" 
