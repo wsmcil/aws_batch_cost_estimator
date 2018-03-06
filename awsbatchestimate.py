@@ -21,7 +21,7 @@ import pdb
 
 # Configuration variables
 fileInput='qry_x86Servers_CapacityNumbers.csv'
-fileOutput='awsbom_fca.csv'
+fileOutput='awsbom_fca_x86.csv'
 
 # Input column mappings
 
