@@ -1,0 +1,17 @@
+[I 10:19:42.634 NotebookApp] Serving notebooks from local directory: /Users/williammcilwain/GitHub/aws_batch_cost_estimator
+[I 10:19:42.635 NotebookApp] 0 active kernels
+[I 10:19:42.635 NotebookApp] The Jupyter Notebook is running at:
+[I 10:19:42.635 NotebookApp] http://localhost:8888/?token=a3e1da27662a01c20d65487f3acca454c85121ab6fbe38b8
+[I 10:19:42.635 NotebookApp] Use Control-C to stop this server and shut down all kernels (twice to skip confirmation).
+[C 10:19:42.637 NotebookApp] 
+    
+    Copy/paste this URL into your browser when you connect for the first time,
+    to login with a token:
+        http://localhost:8888/?token=a3e1da27662a01c20d65487f3acca454c85121ab6fbe38b8
+[I 10:19:43.370 NotebookApp] Accepting one-time-token-authenticated connection from ::1
+[W 10:19:51.086 NotebookApp] 404 GET /nbextensions/widgets/notebook/js/extension.js?v=20180306101941 (::1) 24.09ms referer=http://localhost:8888/notebooks/PG_Enterprise_RFP_Analysis-Copy1.ipynb
+[I 10:19:53.504 NotebookApp] Kernel started: 644cc212-0244-4cab-84cf-702b70549a11
+[I 10:19:55.501 NotebookApp] Adapting to protocol v5.1 for kernel 644cc212-0244-4cab-84cf-702b70549a11
+[I 10:21:53.415 NotebookApp] Saving file at /PG_Enterprise_RFP_Analysis-Copy1.ipynb
+[I 10:23:53.799 NotebookApp] Saving file at /PG_Enterprise_RFP_Analysis-Copy1.ipynb
+[I 10:25:05.000 NotebookApp] Saving file at /PG_Enterprise_RFP_Analysis-Copy1.ipynb
