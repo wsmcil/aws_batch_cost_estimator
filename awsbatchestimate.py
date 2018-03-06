@@ -21,12 +21,9 @@ import pdb
 
 # Configuration variables
 fileInput='cmdb.csv'
+fileOutput='awsbom.csv'
 
 # Input column mappings
-
-# Column which determines if a configuration item is an RDS candidate
-# Non zero value in this column indicates a database present
-srcDbInstanceCount = 'DB Instance Count'
 
 # Column which indicates source cores and peak load
 srcCores = 'CPU'
@@ -59,13 +56,32 @@ awsLocASIA="Asia Pacific (Seoul)"
 srcOS='Platform'
 srcOSVer='OS Ver'
 awsWindows="Windows"
-awsRHEL="REHL"
+awsRHEL="RHEL"
 awsDefault="Linux"
 
 # Compute families.  These are super families.  X and T are actually subfamilies in the pricing API
 awsComputeOptimized="Compute optimized"
 awsMemoryOptimized="Memory optimized"
 awsGeneralPurpose="General purpose"
+
+# Database mappings
+
+# Column which determines if a configuration item is an RDS candidate
+# Non zero value in this column indicates a database present
+srcDbInstanceCount = 'DB Instance Count'
+
+# Dataase constants
+srcOracle="Oracle"
+srcSQLServer="SQL "
+srcDB="DB Rel/Ver"
+awsOracle="Oracle"
+awsSQLServer="SQL Server"
+awsAurora="Aurora MySQL"
+
+# Fixed rates for block storage
+ec2EBSUnitCost=.151
+rdsEBSUnitCost=.116
+srcBlockStorage='Used Size (GB)'
 
 # Open input file, read into frame
 print("Reading input file....")
@@ -334,35 +350,27 @@ for region in regions:
 
                     instance = instance +1
                     
-stop = input("Wait")
+
                     
 # Review and price RDS                    
 # Map source DB to AWS_DB
 
 dfCMDB['AWS_DB'] = "" 
-dfCMDB_filterrds = dfCMDB[(dfCMDB.RDS == True)] 
-
-print('Mapping RDS instances...')
+dfCMDB_filterrds = dfCMDB[(dfCMDB.RDS == True)]   
    
 indexes=dfCMDB_filterrds.index.tolist()
 for row in indexes:
-    if "Oracle" in dfCMDB.loc[row, 'DB Rel/Ver']:
-        dfCMDB.loc[row, 'AWS_DB'] = "Oracle"
-    elif "SQL " in dfCMDB.loc[row, 'DB Rel/Ver']:
-        dfCMDB.loc[row, 'AWS_DB'] = "SQL Server"
+    if srcOracle in dfCMDB.loc[row, srcDB]:
+        dfCMDB.loc[row, 'AWS_DB'] = awsOracle
+    elif srcSQLServer in dfCMDB.loc[row, srcDB]:
+        dfCMDB.loc[row, 'AWS_DB'] = awsSQLServer
     else:
-        dfCMDB.loc[row, 'AWS_DB'] = "Aurora MySQL"
+        dfCMDB.loc[row, 'AWS_DB'] = awsAurora
         
 # Map RDS instances
-
-import boto3
-import json
-import re
-import pandas
-
-regions = {"us-east-1", "eu-central-1", "ap-northeast-2"}
-families = {"m", "c", "r", "t"}
-dbs = {"Oracle", "SQL Server", "Aurora MySQL"}
+#regions = {"us-east-1", "eu-central-1", "ap-northeast-2"}
+#families = {"m", "c", "r", "t"}
+dbs = {awsOracle, awsSQLServer, awsAurora}
 
 print('Pricing RDS...')
 
@@ -375,23 +383,21 @@ for region in regions:
             # Lets get specific and only get the license included, no pre-installed software, current generation, etc.
             client = boto3.client('pricing')
             
-            if region == "us-east-1":
-                location = "US East (N. Virginia)"
-            elif region == "eu-central-1":
-                location = "EU (Frankfurt)"
+            if region == awsDFLT:
+                location = awsLocDFLT
+            elif region == awsEU:
+                location = awsLocEU
             else:
-                location = "Asia Pacific (Seoul)"
+                location = awsLocASIA
             
-            if family == "c":
-                instanceFamily = "General purpose"
-            elif family == "r":
-                instanceFamily = "Memory optimized"
+            if family == "r":
+                instanceFamily = awsMemoryOptimized
             else:
-                instanceFamily = "General purpose"
+                instanceFamily = awsGeneralPurpose
                 
-            if db == "Aurora MySQL":
+            if db == awsAurora:
                 licensemodel="No license required"
-                instanceFamily = "Memory optimized"
+                instanceFamily = awsMemoryOptimized
             else:
                 licensemodel="License included"
     
@@ -431,7 +437,7 @@ for region in regions:
             items=response['PriceList']
 
             # Lets make a dataframe with the RDS instance choices
-            d={'instanceType':[], 'memory':[], 'family':[], 'one_hr_rate':[], 'one_yr_rate':[], 'three_yr_rate':[]}
+            d={'instanceType':[], 'memory':[], 'family':[], 'one_hr_rate':[], 'one_yr_rate':[], 'three_yr_rate':[], 'vcpu':[]}
             dfInstanceList=pd.DataFrame(data=d)
             index=0
 
@@ -445,7 +451,7 @@ for region in regions:
                 ondemandterm="JRTCKXETXF"
                 ondemandratecode="6YS6EN2CT7"
                 
-                if (db == "SQL Server"):
+                if (db == awsSQLServer):
                     oneyearterm="HU7G6KETJZ"
                 else:
                     oneyearterm="6QCMYABX3D"
@@ -458,7 +464,7 @@ for region in regions:
                 oneyr_rate=jItem['terms']['Reserved'][sku+"."+oneyearterm]['priceDimensions'][sku+"."+oneyearterm+"."+oneyearratecode]['pricePerUnit']['USD']
                 
                 # Account for the absence of an 'one-year all up-front' option for SQL server
-                if db == "SQL Server":  
+                if db == awsSQLServer:  
                     sqlhourly=float(jItem['terms']['Reserved'][sku+"."+oneyearterm]['priceDimensions'][sku+"."+oneyearterm+"."+ondemandratecode]['pricePerUnit']['USD'])
                     oneyr_rate = float(oneyr_rate) + (sqlhourly * 8760)
 
@@ -489,9 +495,11 @@ for region in regions:
             dfInstanceList_sorted=dfInstanceList.sort_values(by=['vcpu'], ascending=True)
             dfInstanceList_sorted=dfInstanceList_sorted.reset_index(drop=True)
             
-            if region == "ap-northeast-2":
-                myregion = "ap-southeast-1"
-            else: myregion = region
+            #if region == "ap-northeast-2":
+            #    myregion = "ap-southeast-1"
+            #else: myregion = region
+            
+            myregion=region
                     
             dfCMDB_filter = dfCMDB[(dfCMDB.calc_family == family) & (dfCMDB.AWS_DB == db) & (dfCMDB.RDS == True) & (dfCMDB.AWS_Region == myregion)]
 
@@ -516,15 +524,13 @@ dfCMDB['ebs_month_rate'] = 0
 print('Pricing EBS and snapshots...')
 
 # Flat storage rates assuming 1% monthly rate of change on EC2
-ec2_ebs_unit_cost=.151
-rds_ebs_unit_cost=.116
 
-for index in dfCMDB_filter.index.tolist():
+for index in dfCMDB.index.tolist():
     if dfCMDB.loc[index, 'RDS'] == True:
-        dfCMDB.loc[index, 'ebs_month_rate'] = dfCMDB.loc[index, 'Used Size (GB)'] * rds_ebs_unit_cost
+        dfCMDB.loc[index, 'ebs_month_rate'] = dfCMDB.loc[index, srcBlockStorage] * rdsEBSUnitCost
     else:
-        dfCMDB.loc[index, 'ebs_month_rate'] = dfCMDB.loc[index, 'Used Size (GB)'] * ec2_ebs_unit_cost
+        dfCMDB.loc[index, 'ebs_month_rate'] = dfCMDB.loc[index, srcBlockStorage] * ec2EBSUnitCost
 
 # Write output file
 print("Writing output file...")
-dfCMDB.to_csv('awsbom.csv')
+dfCMDB.to_csv(fileOutput)
