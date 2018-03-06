@@ -42,6 +42,14 @@ DEV = 'Dev'
 QA = 'QA'
 TEST = 'Test'
 
+# Region mappings, including using a default region if not specified as europe or asia
+srcRegion='Target Region'
+srcASIA="AP"
+awsASIA="ap-northeast-2"
+srcEU='EU'
+awsEU='eu-central-1'
+awsDFLT='us-east-1'
+
 # Open input file, read into frame
 print("Reading input file....")
 dfCMDB = pd.read_csv(fileInput, keep_default_na=False)
@@ -92,10 +100,10 @@ for index in dfCMDB.index.tolist():
     else:
              dfCMDB.loc[index, 'calc_family'] = "m"
             
-name = input("What's your name? ")
+
             
 # Create AWS Region Column and map to source region
-# ap-southeast-1
+# ap-northeast-2
 # us-east-1
 # eu-central-1
 dfCMDB['AWS_Region'] = ""
@@ -103,12 +111,14 @@ dfCMDB['AWS_Region'] = ""
 print ("Mapping regions...")
 
 for index in dfCMDB.index.tolist():
-    if dfCMDB.loc[index, 'Target Region'] == "AP":
-        dfCMDB.loc[index, 'AWS_Region'] = "ap-southeast-1"
-    elif dfCMDB.loc[index, 'Target Region'] == "EU":
-        dfCMDB.loc[index, 'AWS_Region'] = "eu-central-1"
+    if dfCMDB.loc[index, srcRegion] == srcASIA:
+        dfCMDB.loc[index, 'AWS_Region'] = awsASIA
+    elif dfCMDB.loc[index, srcRegion] == srcEU:
+        dfCMDB.loc[index, 'AWS_Region'] = awsEU
     else:
-        dfCMDB.loc[index, 'AWS_Region'] = "us-east-1"
+        dfCMDB.loc[index, 'AWS_Region'] = awsDFLT
+        
+result = input("Wait")
         
 # Create AWS OS column, search for key words in source os to map to EC2 platform
 
