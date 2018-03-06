@@ -1,10 +1,12 @@
+#!/usr/bin/env python3
+
 # AWS Batch Cost Estimator
 #
 # Reads input CMDB information from a traditional data center to size and cost estimate AWS EC2 & RDS
 # infrastructure.
 #
 # Prerequisites:
-# 1. Python
+# 1. Python3
 # 2. AWS Python SDK (Boto3)
 # 3. Pandas Python library
 # 4. json Python library
@@ -16,8 +18,29 @@ import json
 import boto3
 import re
 
-# Initialize variables
+# Configuration variables
 fileInput='cmdb.csv'
+
+# Input column mappings
+
+# Column which determines if a configuration item is an RDS candidate
+# Non zero value in this column indicates a database present
+srcDbInstanceCount = 'DB Instance Count'
+
+# Column which indicates source cores and peak load
+srcCores = 'CPU'
+srcCPUUsage = 'Peak CPU Load'
+
+# Column which indicates peak memory useage in MB
+# If srcMemUsed is blank or zero, the script will use srcMemProvsioned as the target memory
+srcMemProvisioned = 'Mem (MB)'
+srcMemUsed = 'Peak Mem Used'
+
+# Columns indicating environment (dev, test, prod, etc.)
+srcEnv = 'Current State Services'
+DEV = 'Dev'
+QA = 'QA'
+TEST = 'Test'
 
 # Open input file, read into frame
 print("Reading input file....")
@@ -28,9 +51,8 @@ print("Determining RDS targets....")
 dfCMDB['RDS']=False
 
 # List the servers with database instances along with type, flag as targets for RDS service
-dfDBServers = dfCMDB[dfCMDB['DB Instance Count'] != ""]
-dfDBServers = dfDBServers[dfDBServers['DB Instance Count'] !="0"]
-dfDBServers[['Node Name', 'DB Rel/Ver','Target Region', 'Resilliency / DR Classification']]
+dfDBServers = dfCMDB[dfCMDB[srcDbInstanceCount] != ""]
+dfDBServers = dfDBServers[dfDBServers[srcDbInstanceCount] !="0"]
 
 indexes=dfDBServers.index.tolist()
 
@@ -39,27 +61,26 @@ for row in indexes:
     
 # Calculate cores needed from peak CPU
 print("Calculating target EC2 cores...")
-dfCMDB['cores_calc'] = (dfCMDB['CPU'] * dfCMDB['Peak CPU Load']) + .51
+dfCMDB['cores_calc'] = (dfCMDB[srcCores] * dfCMDB[srcCPUUsage]) + .51
 dfCMDB['cores_calc']=dfCMDB['cores_calc'].round(decimals=0)
 
-# Correct missing peak memory
+# Correct missing used memory
 for index in dfCMDB.index.tolist():
-    if dfCMDB.loc[index, 'Peak Mem Used'] == 0:
-        dfCMDB.loc[index, 'Peak Mem Used'] = dfCMDB.loc[index, 'Mem (MB)'] / 1000
+    if dfCMDB.loc[index, srcMemUsed] == 0:
+        dfCMDB.loc[index, srcMemUsed] = dfCMDB.loc[index, srcMemProvisioned] / 1000
         
 # Create family inference column
 print("Determining EC2 instance families...")
 dfCMDB['calc_family'] = ""
 
-
 # Make an inference for ec2 family
-dfCMDB['mem_cpu_ratio'] = dfCMDB['Peak Mem Used'] / dfCMDB['cores_calc']
+dfCMDB['mem_cpu_ratio'] = dfCMDB[srcMemUsed] / dfCMDB['cores_calc']
 
 for index in dfCMDB.index.tolist():
-    if ((dfCMDB.loc[index, 'cores_calc'] <= 8) and (dfCMDB.loc[index, 'Peak Mem Used'] <=32)
-        and ("Dev" in dfCMDB.loc[index, 'Current State Services']
-             or "QA" in dfCMDB.loc[index, 'Current State Services']
-             or "Test" in dfCMDB.loc[index, 'Current State Services'])):
+    if ((dfCMDB.loc[index, 'cores_calc'] <= 8) and (dfCMDB.loc[index, srcMemUsed] <=32)
+        and (DEV in dfCMDB.loc[index, srcEnv]
+             or QA in dfCMDB.loc[index, srcEnv]
+             or TEST in dfCMDB.loc[index, srcEnv])):
             dfCMDB.loc[index, 'calc_family'] = "t"
             
     elif (dfCMDB.loc[index, 'mem_cpu_ratio'] < 3.5):
@@ -70,6 +91,8 @@ for index in dfCMDB.index.tolist():
             
     else:
              dfCMDB.loc[index, 'calc_family'] = "m"
+            
+name = input("What's your name? ")
             
 # Create AWS Region Column and map to source region
 # ap-southeast-1
@@ -464,4 +487,4 @@ for index in dfCMDB_filter.index.tolist():
 
 # Write output file
 print("Writing output file...")
-dfCMDB.to_csv('bom.csv')
+dfCMDB.to_csv('awsbom.csv')
