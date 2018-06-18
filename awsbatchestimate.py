@@ -17,11 +17,10 @@ import pandas as pd
 import json
 import boto3
 import re
-import pdb
 
 # Configuration variables
-fileInput='cmdb.csv'
-fileOutput='aws_bom.csv'
+fileInput='~/inputdata/cmdb.csv'
+fileOutput='~/outputdata/aws_bom.csv'
 
 # Input column mappings
 
@@ -29,9 +28,9 @@ fileOutput='aws_bom.csv'
 srcCores = 'CPU'
 srcCPUUsage = 'Peak CPU Load'
 
-# Column which indicates peak memory useage in MB
+# Column which indicates peak memory useage in GB
 # If srcMemUsed is blank or zero, the script will use srcMemProvsioned as the target memory
-srcMemProvisioned = 'Mem (MB)'
+srcMemProvisioned = 'Mem (GB)'
 srcMemUsed = 'Peak Mem Used'
 
 # Columns indicating environment (dev, test, prod, etc.)
@@ -299,8 +298,13 @@ for region in regions:
 
                 elif (region == awsDFLT):
                     if ((instancefamily != "m4") and (instancefamily != "m3") and (instancefamily != "c4") and (instancefamily !="c3") and (instancefamily != "r3") and (instancefamily != "t2") and (skip != True)):
+                        
+                        #strip out the nasty characters from the json memory field
                         memoryelement=itemAttributes['memory']
-                        memory=re.sub('[^0-9]','', memoryelement)
+                        memoryelement_strip = memoryelement.replace(' GiB','')
+                        memoryelement_strip = memoryelement_strip.split(".")[0]
+                        memory=re.sub('[^0-9]','', memoryelement_strip)
+                        
                         dfInstanceList.loc[index, 'instanceType'] = itemAttributes['instanceType']
                         dfInstanceList.loc[index, 'memory'] =  memory
                         dfInstanceList.loc[index,'family'] = family
@@ -313,7 +317,12 @@ for region in regions:
                 else:
                     if ((instancefamily != "m3") and (instancefamily != "c3") and (instancefamily != "r3") and (instancefamily != "t2") and (skip != True)):
                         memoryelement=itemAttributes['memory']
-                        memory=re.sub('[^0-9]','', memoryelement)
+                        
+                        #strip out the nasty characters from the json memory field
+                        memoryelement_strip = memoryelement.replace(' GiB','')
+                        memoryelement_strip = memoryelement_strip.split(".")[0]
+                        memory=re.sub('[^0-9]','', memoryelement_strip)
+                        
                         dfInstanceList.loc[index, 'instanceType'] = itemAttributes['instanceType']
                         dfInstanceList.loc[index, 'memory'] =  memory
                         dfInstanceList.loc[index,'family'] = family
@@ -325,14 +334,19 @@ for region in regions:
                         
             skip = False
             
-            #Convert memory to numeric
+            #Convert elements to numeric
             dfInstanceList['memory']=dfInstanceList['memory'].apply(pd.to_numeric)
             dfInstanceList['vcpu']=dfInstanceList['vcpu'].apply(pd.to_numeric)
             dfInstanceList['one_hr_rate']=dfInstanceList['one_hr_rate'].apply(pd.to_numeric)
             dfInstanceList['one_yr_rate']=dfInstanceList['one_yr_rate'].apply(pd.to_numeric)
             dfInstanceList['three_yr_rate']=dfInstanceList['three_yr_rate'].apply(pd.to_numeric)
 
-            dfInstanceList_sorted=dfInstanceList.sort_values(by=['vcpu'], ascending=True)
+            #If memory optimzied sort primary by memory, otherwise sort primary by CPU
+            if(family == "r"):
+                dfInstanceList_sorted=dfInstanceList.sort_values(['memory', 'vcpu'], ascending=[True,True])
+            else:
+                dfInstanceList_sorted=dfInstanceList.sort_values(['vcpu', 'memory'], ascending=[True,True])
+            
             dfInstanceList_sorted=dfInstanceList_sorted.reset_index(drop=True)
                     
             dfCMDB_filter = dfCMDB[(dfCMDB.calc_family == family) & (dfCMDB.AWS_OS == os) & (dfCMDB.RDS == False) & (dfCMDB.AWS_Region == region)]
@@ -350,10 +364,9 @@ for region in regions:
                         dfCMDB.loc[index, 'one_hr_rate'] = dfInstanceList_sorted.loc[instance, 'one_hr_rate']
                         dfCMDB.loc[index, 'one_yr_rate'] = dfInstanceList_sorted.loc[instance, 'one_yr_rate']
                         dfCMDB.loc[index, 'three_yr_rate'] = dfInstanceList_sorted.loc[instance, 'three_yr_rate']
-
+                        
                     instance = instance +1
                     
-
                     
 # Review and price RDS                    
 # Map source DB to AWS_DB
@@ -477,7 +490,12 @@ for region in regions:
         
                 # Load rates
                 memoryelement=itemAttributes['memory']
-                memory=re.sub('[^0-9]','', memoryelement)
+                        
+                #strip out the nasty characters from the json memory field
+                memoryelement_strip = memoryelement.replace(' GiB','')
+                memoryelement_strip = memoryelement_strip.split(".")[0]
+                memory=re.sub('[^0-9]','', memoryelement_strip)
+
                 dfInstanceList.loc[index, 'instanceType'] = itemAttributes['instanceType']
                 dfInstanceList.loc[index, 'memory'] =  memory
                 dfInstanceList.loc[index,'family'] = family
@@ -487,7 +505,7 @@ for region in regions:
                 dfInstanceList.loc[index, 'three_yr_rate'] = threeyr_rate
                 index=index+1
             
-            #Convert memory to numeric
+            #Convert elements to numeric
             
             dfInstanceList['memory']=dfInstanceList['memory'].apply(pd.to_numeric)
             dfInstanceList['vcpu']=dfInstanceList['vcpu'].apply(pd.to_numeric)
@@ -495,12 +513,13 @@ for region in regions:
             dfInstanceList['one_yr_rate']=dfInstanceList['one_yr_rate'].apply(pd.to_numeric)
             dfInstanceList['three_yr_rate']=dfInstanceList['three_yr_rate'].apply(pd.to_numeric)
 
-            dfInstanceList_sorted=dfInstanceList.sort_values(by=['vcpu'], ascending=True)
+            # If family is memory optimized, sorty primarily by memory, otherwise primarly cpu
+            if(family == "r"):
+                dfInstanceList_sorted=dfInstanceList.sort_values(['memory', 'vcpu'], ascending=[True,True])
+            else:
+                dfInstanceList_sorted=dfInstanceList.sort_values(['vcpu', 'memory'], ascending=[True,True])
+
             dfInstanceList_sorted=dfInstanceList_sorted.reset_index(drop=True)
-            
-            #if region == "ap-northeast-2":
-            #    myregion = "ap-southeast-1"
-            #else: myregion = region
             
             myregion=region
                     
