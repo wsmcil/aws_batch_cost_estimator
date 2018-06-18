@@ -10,7 +10,7 @@
 # 2. AWS Python SDK (Boto3)
 # 3. Pandas Python library
 # 4. json Python library
-# 5. re Pythong libary
+# 5. re Python libary
 
 # Load libraries
 import pandas as pd
@@ -20,22 +20,22 @@ import re
 import pdb
 
 # Configuration variables
-fileInput='qry_x86Servers_CapacityNumbers.csv'
-fileOutput='awsbom_fca_x86.csv'
+fileInput='cmdb.csv'
+fileOutput='aws_bom.csv'
 
 # Input column mappings
 
 # Column which indicates source cores and peak load
-srcCores = '# of CPUs'
-srcCPUUsage = 'PeakCPU%'
+srcCores = 'CPU'
+srcCPUUsage = 'Peak CPU Load'
 
 # Column which indicates peak memory useage in MB
 # If srcMemUsed is blank or zero, the script will use srcMemProvsioned as the target memory
-srcMemProvisioned = 'Memory'
-srcMemUsed = 'MemUsed'
+srcMemProvisioned = 'Mem (MB)'
+srcMemUsed = 'Peak Mem Used'
 
 # Columns indicating environment (dev, test, prod, etc.)
-srcEnv = 'Environment'
+srcEnv = 'Current State Services'
 DEV = 'Dev'
 QA = 'QA'
 TEST = 'Test'
@@ -53,8 +53,8 @@ awsLocASIA="Asia Pacific (Seoul)"
 
 # OS platforms for AWS.  The customer source is all over the board and requires some manual
 # tweaking.  So far only coded for Windows, RHEL, and Amazon Linux (default)
-srcOS='OS'
-srcOSVer='OS'
+srcOS='Platform'
+srcOSVer='OS Ver'
 awsWindows="Windows"
 awsRHEL="RHEL"
 awsDefault="Linux"
@@ -81,7 +81,7 @@ awsAurora="Aurora MySQL"
 # Fixed rates for block storage
 ec2EBSUnitCost=.151
 rdsEBSUnitCost=.116
-srcBlockStorage='Disk (GB)'
+srcBlockStorage='Fixed Used Size (GB)'
 
 # Open input file, read into frame
 print("Reading input file....")
@@ -259,11 +259,17 @@ for region in regions:
             index=0
 
             for item in items:
+                skip = False;
                 jItem=json.loads(item)
                 itemAttributes=jItem['product']['attributes']
                 instanceType=itemAttributes['instanceType']
                 instancefamily=instanceType[0:2]
-                if ((instancefamily != "c3") and (instancefamily != "m3")):
+                
+                # Filter out the new m5d types
+                if (instanceType[0:3] == "m5d"):
+                    skip = True;
+                
+                if ((instancefamily != "c3") and (instancefamily != "m3") and (skip != True)):
                     vcpu=itemAttributes['vcpu']
                     sku=jItem['product']['sku']
                     ondemandterm="JRTCKXETXF"
@@ -292,7 +298,7 @@ for region in regions:
 
 
                 elif (region == awsDFLT):
-                    if ((instancefamily != "m4") and (instancefamily != "m3") and (instancefamily != "c4") and (instancefamily !="c3") and (instancefamily != "r3") and (instancefamily != "t2")):
+                    if ((instancefamily != "m4") and (instancefamily != "m3") and (instancefamily != "c4") and (instancefamily !="c3") and (instancefamily != "r3") and (instancefamily != "t2") and (skip != True)):
                         memoryelement=itemAttributes['memory']
                         memory=re.sub('[^0-9]','', memoryelement)
                         dfInstanceList.loc[index, 'instanceType'] = itemAttributes['instanceType']
@@ -305,7 +311,7 @@ for region in regions:
                         index=index+1
 
                 else:
-                    if ((instancefamily != "m3") and (instancefamily != "c3") and (instancefamily != "r3") and (instancefamily != "t2")):
+                    if ((instancefamily != "m3") and (instancefamily != "c3") and (instancefamily != "r3") and (instancefamily != "t2") and (skip != True)):
                         memoryelement=itemAttributes['memory']
                         memory=re.sub('[^0-9]','', memoryelement)
                         dfInstanceList.loc[index, 'instanceType'] = itemAttributes['instanceType']

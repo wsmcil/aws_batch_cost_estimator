@@ -17,3 +17,54 @@
 [I 10:25:05.000 NotebookApp] Saving file at /PG_Enterprise_RFP_Analysis-Copy1.ipynb
 [I 14:05:05.886 NotebookApp] Starting buffering for 644cc212-0244-4cab-84cf-702b70549a11:3BDCC7BD2D484567A75AA100DF1CFD7A
 [I 14:05:06.527 NotebookApp] Kernel shutdown: 644cc212-0244-4cab-84cf-702b70549a11
+[I 11:40:40.203 NotebookApp] JupyterLab alpha preview extension loaded from /Users/mcilwaw/anaconda3/lib/python3.6/site-packages/jupyterlab
+JupyterLab v0.27.0
+Known labextensions:
+[I 11:40:40.207 NotebookApp] Running the core application with no additional extensions or settings
+[I 11:40:40.218 NotebookApp] Serving notebooks from local directory: /Users/mcilwaw/GitHub/aws_batch_cost_estimator
+[I 11:40:40.218 NotebookApp] 0 active kernels 
+[I 11:40:40.218 NotebookApp] The Jupyter Notebook is running at: http://localhost:8888/?token=e78dd2a752efbaf46d0d3b2affb565568d3ff333290f0ae3
+[I 11:40:40.219 NotebookApp] Use Control-C to stop this server and shut down all kernels (twice to skip confirmation).
+[C 11:40:40.220 NotebookApp] 
+    
+    Copy/paste this URL into your browser when you connect for the first time,
+    to login with a token:
+        http://localhost:8888/?token=e78dd2a752efbaf46d0d3b2affb565568d3ff333290f0ae3
+[I 11:40:40.759 NotebookApp] Accepting one-time-token-authenticated connection from ::1
+nohup: juptyer: No such file or directory
+nohup: juptyer: No such file or directory
+[I 12:11:43.567 NotebookApp] The port 8888 is already in use, trying another port.
+[I 12:11:43.569 NotebookApp] The port 8889 is already in use, trying another port.
+[I 12:11:43.623 NotebookApp] JupyterLab alpha preview extension loaded from /Users/mcilwaw/anaconda3/lib/python3.6/site-packages/jupyterlab
+JupyterLab v0.27.0
+Known labextensions:
+[I 12:11:43.627 NotebookApp] Running the core application with no additional extensions or settings
+[I 12:11:43.635 NotebookApp] Serving notebooks from local directory: /Users/mcilwaw/GitHub/aws_batch_cost_estimator
+[I 12:11:43.635 NotebookApp] 0 active kernels 
+[I 12:11:43.635 NotebookApp] The Jupyter Notebook is running at: http://localhost:8890/?token=b0199b282481d52ae66e7c7fa68d0414f41aede8162ab72b
+[I 12:11:43.635 NotebookApp] Use Control-C to stop this server and shut down all kernels (twice to skip confirmation).
+[C 12:11:43.639 NotebookApp] 
+    
+    Copy/paste this URL into your browser when you connect for the first time,
+    to login with a token:
+        http://localhost:8890/?token=b0199b282481d52ae66e7c7fa68d0414f41aede8162ab72b
+[I 12:11:44.408 NotebookApp] Accepting one-time-token-authenticated connection from ::1
+[I 12:11:50.079 NotebookApp] Creating new notebook in 
+[I 12:11:51.645 NotebookApp] Kernel started: fc802373-1638-47b0-9b65-6aa5d423f116
+[I 12:11:55.415 NotebookApp] Adapting to protocol v5.1 for kernel fc802373-1638-47b0-9b65-6aa5d423f116
+[I 12:13:51.352 NotebookApp] Saving file at /Untitled.ipynb
+[I 12:21:51.381 NotebookApp] Saving file at /Untitled.ipynb
+[I 12:25:51.402 NotebookApp] Saving file at /Untitled.ipynb
+[I 12:31:51.425 NotebookApp] Saving file at /Untitled.ipynb
+[I 12:33:51.472 NotebookApp] Saving file at /Untitled.ipynb
+[I 12:37:51.417 NotebookApp] Saving file at /Untitled.ipynb
+[I 12:41:51.444 NotebookApp] Saving file at /Untitled.ipynb
+[I 12:45:51.456 NotebookApp] Saving file at /Untitled.ipynb
+[I 12:47:51.460 NotebookApp] Saving file at /Untitled.ipynb
+[I 12:49:05.448 NotebookApp] Saving file at /Untitled.ipynb
+[I 12:49:51.466 NotebookApp] Saving file at /Untitled.ipynb
+[I 12:51:51.472 NotebookApp] Saving file at /Untitled.ipynb
+[I 12:53:34.247 NotebookApp] Saving file at /Untitled.ipynb
+[I 12:57:51.493 NotebookApp] Saving file at /Untitled.ipynb
+[C 14:22:02.102 NotebookApp] received signal 15, stopping
+[C 14:22:02.103 NotebookApp] received signal 15, stopping
