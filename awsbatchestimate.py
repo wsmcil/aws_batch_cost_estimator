@@ -259,7 +259,7 @@ for region in regions:
             index=0
 
             for item in items:
-                skip = False;
+                skip = False
                 jItem=json.loads(item)
                 itemAttributes=jItem['product']['attributes']
                 instanceType=itemAttributes['instanceType']
@@ -267,7 +267,7 @@ for region in regions:
                 
                 # Filter out the new m5d types
                 if (instanceType[0:3] == "m5d"):
-                    skip = True;
+                    skip = True
                 
                 if ((instancefamily != "c3") and (instancefamily != "m3") and (skip != True)):
                     vcpu=itemAttributes['vcpu']
@@ -322,6 +322,8 @@ for region in regions:
                         dfInstanceList.loc[index, 'one_yr_rate'] = oneyr_rate
                         dfInstanceList.loc[index, 'three_yr_rate'] = threeyr_rate
                         index=index+1
+                        
+            skip = False
             
             #Convert memory to numeric
             dfInstanceList['memory']=dfInstanceList['memory'].apply(pd.to_numeric)
