@@ -6,7 +6,7 @@
 # infrastructure.
 #
 # Prerequisites:
-# 1. Python3
+# 1. Python
 # 2. AWS Python SDK (Boto3)
 # 3. Pandas Python library
 # 4. json Python library
