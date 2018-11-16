@@ -22,6 +22,8 @@ import re
 fileInput='~/inputdata/cmdb.csv'
 fileOutput='~/outputdata/aws_bom.csv'
 
+# Test this
+# is a test
 # Input column mappings
 
 # Column which indicates source cores and peak load
