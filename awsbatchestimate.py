@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # AWS Batch Cost Estimator
 #
@@ -6,7 +6,7 @@
 # infrastructure.
 #
 # Prerequisites:
-# 1. Python
+# 1. Python3
 # 2. AWS Python SDK (Boto3)
 # 3. Pandas Python library
 # 4. json Python library
@@ -19,30 +19,28 @@ import boto3
 import re
 
 # Configuration variables
-fileInput='~/inputdata/cmdb.csv'
-fileOutput='~/outputdata/aws_bom.csv'
+fileInput='./requirements.csv'
+fileOutput='./aws_bom.csv'
 
-# Test this
-# is a test
 # Input column mappings
 
 # Column which indicates source cores and peak load
-srcCores = 'CPU'
-srcCPUUsage = 'Peak CPU Load'
+srcCores = 'vCPU'
+srcCPUUsage = 'CPU_Usage'
 
 # Column which indicates peak memory useage in GB
 # If srcMemUsed is blank or zero, the script will use srcMemProvsioned as the target memory
-srcMemProvisioned = 'Mem (GB)'
-srcMemUsed = 'Peak Mem Used'
+srcMemProvisioned = 'Memory_GB'
+srcMemUsed = 'Memory_GB'
 
 # Columns indicating environment (dev, test, prod, etc.)
-srcEnv = 'Current State Services'
+srcEnv = 'Environment'
 DEV = 'Dev'
 QA = 'QA'
 TEST = 'Test'
 
 # Region mappings, including using a default region if not specified as europe or asia
-srcRegion='Target Region'
+srcRegion='Location'
 srcASIA="AP"
 awsASIA="ap-northeast-2"
 srcEU='EU'
@@ -58,7 +56,8 @@ srcOS='Platform'
 srcOSVer='OS Ver'
 awsWindows="Windows"
 awsRHEL="RHEL"
-awsDefault="Linux"
+awsSLES="SLES"
+awsDefault="SLES"
 
 # Compute families.  These are super families.  X and T are actually subfamilies in the pricing API
 awsComputeOptimized="Compute optimized"
@@ -69,7 +68,7 @@ awsGeneralPurpose="General purpose"
 
 # Column which determines if a configuration item is an RDS candidate
 # Non zero value in this column indicates a database present
-srcDbInstanceCount = 'DB Instance Count'
+srcDbInstanceCount = 'RDS_Instances'
 
 # Dataase constants
 srcOracle="Oracle"
@@ -82,7 +81,7 @@ awsAurora="Aurora MySQL"
 # Fixed rates for block storage
 ec2EBSUnitCost=.151
 rdsEBSUnitCost=.116
-srcBlockStorage='Fixed Used Size (GB)'
+srcBlockStorage='Block Storage GB'
 
 # Open input file, read into frame
 print("Reading input file....")
@@ -161,6 +160,8 @@ dfCMDB['AWS_OS'] = ""
 for index in dfCMDB.index.tolist():
     if "Windows" in dfCMDB.loc[index, srcOS]:
         dfCMDB.loc[index, 'AWS_OS'] = awsWindows
+    elif "SLES" in dfCMDB.loc[index, srcOS]:
+        dfCMDB.loc[index, 'AWS_OS'] = awsSLES
     elif "Linux" in dfCMDB.loc[index, srcOS]:
         if ("RHEL" in dfCMDB.loc[index, srcOSVer] or
             "Red" in dfCMDB.loc[index, srcOSVer] or
@@ -181,9 +182,11 @@ print('Pricing EC2 instances....')
 # Match calculated capacity requirements to EC2 instance types
 # Price resulting EC2 instance types by hour, year, and 3-year RIs
 
-regions = {awsDFLT, awsEU, awsASIA}
-families = {"m", "c", "r", "t"}
-oses = {awsWindows, awsRHEL, awsDefault}
+#regions = {awsDFLT, awsEU, awsASIA}
+regions = {awsDFLT}
+families = {"m", "c", "r"}
+#oses = {awsWindows, awsRHEL, awsDefault}
+oses = {awsWindows, awsRHEL, awsSLES}
 
 for region in regions:
     print("Region " +region)
@@ -244,7 +247,18 @@ for region in regions:
                         'Type': 'TERM_MATCH',
                         'Field': 'preInstalledSw',
                         'Value': 'NA'
+                    },
+                    {
+                        'Type': 'TERM_MATCH',
+                        'Field': 'operatingSystem',
+                        'Value': 'RHEL'
+                    },
+                    {
+                        'Type': 'TERM_MATCH',
+                        'Field': 'capacitystatus',
+                        'Value': 'Used'
                     }
+                    
                 ],
                 ServiceCode='AmazonEC2',
                 MaxResults=100
@@ -252,7 +266,6 @@ for region in regions:
         
             # Let's parse the JSON and get the elements we need to map to EC2 instance type
             items=response['PriceList']
-
 
             # Lets make a dataframe with the EC2 instance choices that are rhel and memory optimized
             d={'instanceType':[], 'memory':[], 'family':[], 'one_hr_rate':[], 'one_yr_rate':[], 'three_yr_rate':[], 'vcpu':[]}
@@ -269,8 +282,26 @@ for region in regions:
                 # Filter out the new m5d types
                 if (instanceType[0:3] == "m5d"):
                     skip = True
+                    
+                if (instanceType[0:3] == "m5a"):
+                    skip = True
+                    
+                if (instanceType[0:2] == "c4"):
+                    skip = True
+                    
+                if (instanceType[0:3] == "c5d"):
+                    skip = True
+                    
+                if (instanceType[0:2] == "t2"):
+                    skip = True
+                    
+                if (instanceType[0:2] == "m4"):
+                    skip = True
+                    
+                if (instanceType[0:2] == "t3"):
+                    skip = True
                 
-                if ((instancefamily != "c3") and (instancefamily != "m3") and (skip != True)):
+                if (skip != True):
                     vcpu=itemAttributes['vcpu']
                     sku=jItem['product']['sku']
                     ondemandterm="JRTCKXETXF"
@@ -282,57 +313,22 @@ for region in regions:
                     onehr_rate=jItem['terms']['OnDemand'][sku+"."+ondemandterm]['priceDimensions'][sku+"."+ondemandterm+"."+ondemandratecode]['pricePerUnit']['USD']
                     oneyr_rate=jItem['terms']['Reserved'][sku+"."+oneyearterm]['priceDimensions'][sku+"."+oneyearterm+"."+oneyearratecode]['pricePerUnit']['USD']
                     threeyr_rate=jItem['terms']['Reserved'][sku+"."+threeyearterm]['priceDimensions'][sku+"."+threeyearterm+"."+threeyearratecode]['pricePerUnit']['USD']
-                
-                # Drop the old lines
-                if (family == "t"):
-                    if (instancefamily[0] != "m"):
-                        memoryelement=itemAttributes['memory']
-                        memory=re.sub('[^0-9]','', memoryelement)
-                        dfInstanceList.loc[index, 'instanceType'] = itemAttributes['instanceType']
-                        dfInstanceList.loc[index, 'memory'] =  memory
-                        dfInstanceList.loc[index,'family'] = family
-                        dfInstanceList.loc[index, 'vcpu'] = vcpu 
-                        dfInstanceList.loc[index, 'one_hr_rate'] = onehr_rate
-                        dfInstanceList.loc[index, 'one_yr_rate'] = oneyr_rate
-                        dfInstanceList.loc[index, 'three_yr_rate'] = threeyr_rate
-                        index=index+1
-
-
-                elif (region == awsDFLT):
-                    if ((instancefamily != "m4") and (instancefamily != "m3") and (instancefamily != "c4") and (instancefamily !="c3") and (instancefamily != "r3") and (instancefamily != "t2") and (skip != True)):
+                    
+                if (skip != True):
+                    memoryelement=itemAttributes['memory']
+                    #strip out the nasty characters from the json memory field
+                    memoryelement_strip = memoryelement.replace(' GiB','')
+                    memoryelement_strip = memoryelement_strip.split(".")[0]
+                    memory=re.sub('[^0-9]','', memoryelement_strip)
                         
-                        #strip out the nasty characters from the json memory field
-                        memoryelement=itemAttributes['memory']
-                        memoryelement_strip = memoryelement.replace(' GiB','')
-                        memoryelement_strip = memoryelement_strip.split(".")[0]
-                        memory=re.sub('[^0-9]','', memoryelement_strip)
-                        
-                        dfInstanceList.loc[index, 'instanceType'] = itemAttributes['instanceType']
-                        dfInstanceList.loc[index, 'memory'] =  memory
-                        dfInstanceList.loc[index,'family'] = family
-                        dfInstanceList.loc[index,'vcpu'] = vcpu
-                        dfInstanceList.loc[index, 'one_hr_rate'] = onehr_rate
-                        dfInstanceList.loc[index, 'one_yr_rate'] = oneyr_rate
-                        dfInstanceList.loc[index, 'three_yr_rate'] = threeyr_rate
-                        index=index+1
-
-                else:
-                    if ((instancefamily != "m3") and (instancefamily != "c3") and (instancefamily != "r3") and (instancefamily != "t2") and (skip != True)):
-                        memoryelement=itemAttributes['memory']
-                        
-                        #strip out the nasty characters from the json memory field
-                        memoryelement_strip = memoryelement.replace(' GiB','')
-                        memoryelement_strip = memoryelement_strip.split(".")[0]
-                        memory=re.sub('[^0-9]','', memoryelement_strip)
-                        
-                        dfInstanceList.loc[index, 'instanceType'] = itemAttributes['instanceType']
-                        dfInstanceList.loc[index, 'memory'] =  memory
-                        dfInstanceList.loc[index,'family'] = family
-                        dfInstanceList.loc[index, 'vcpu'] = vcpu
-                        dfInstanceList.loc[index, 'one_hr_rate'] = onehr_rate
-                        dfInstanceList.loc[index, 'one_yr_rate'] = oneyr_rate
-                        dfInstanceList.loc[index, 'three_yr_rate'] = threeyr_rate
-                        index=index+1
+                    dfInstanceList.loc[index, 'instanceType'] = itemAttributes['instanceType']
+                    dfInstanceList.loc[index, 'memory'] =  memory
+                    dfInstanceList.loc[index,'family'] = family
+                    dfInstanceList.loc[index, 'vcpu'] = vcpu
+                    dfInstanceList.loc[index, 'one_hr_rate'] = onehr_rate
+                    dfInstanceList.loc[index, 'one_yr_rate'] = oneyr_rate
+                    dfInstanceList.loc[index, 'three_yr_rate'] = threeyr_rate
+                    index=index+1
                         
             skip = False
             
@@ -350,9 +346,11 @@ for region in regions:
                 dfInstanceList_sorted=dfInstanceList.sort_values(['vcpu', 'memory'], ascending=[True,True])
             
             dfInstanceList_sorted=dfInstanceList_sorted.reset_index(drop=True)
-                    
+            
             dfCMDB_filter = dfCMDB[(dfCMDB.calc_family == family) & (dfCMDB.AWS_OS == os) & (dfCMDB.RDS == False) & (dfCMDB.AWS_Region == region)]
-
+            
+            index=0
+            
             # Map instances to EC2 instance types  
 
             for index in dfCMDB_filter.index.tolist():
@@ -388,7 +386,8 @@ for row in indexes:
 # Map RDS instances
 #regions = {"us-east-1", "eu-central-1", "ap-northeast-2"}
 #families = {"m", "c", "r", "t"}
-dbs = {awsOracle, awsSQLServer, awsAurora}
+#dbs = {awsOracle, awsSQLServer, awsAurora}
+dbs = {awsOracle, awsAurora}
 
 print('Pricing RDS...')
 
