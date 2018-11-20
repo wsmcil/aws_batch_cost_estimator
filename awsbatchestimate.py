@@ -160,8 +160,6 @@ dfCMDB['AWS_OS'] = ""
 for index in dfCMDB.index.tolist():
     if "Windows" in dfCMDB.loc[index, srcOS]:
         dfCMDB.loc[index, 'AWS_OS'] = awsWindows
-    elif "SLES" in dfCMDB.loc[index, srcOS]:
-        dfCMDB.loc[index, 'AWS_OS'] = awsSLES
     elif "Linux" in dfCMDB.loc[index, srcOS]:
         if ("RHEL" in dfCMDB.loc[index, srcOSVer] or
             "Red" in dfCMDB.loc[index, srcOSVer] or
@@ -183,10 +181,9 @@ print('Pricing EC2 instances....')
 # Price resulting EC2 instance types by hour, year, and 3-year RIs
 
 #regions = {awsDFLT, awsEU, awsASIA}
-regions = {awsDFLT}
-families = {"m", "c", "r"}
-#oses = {awsWindows, awsRHEL, awsDefault}
-oses = {awsWindows, awsRHEL, awsSLES}
+regions = {awsDFLT, awsEU, awsASIA}
+families = {"m", "c", "r", "t"}
+oses = {awsWindows, awsRHEL, awsDefault}
 
 for region in regions:
     print("Region " +region)
@@ -250,11 +247,6 @@ for region in regions:
                     },
                     {
                         'Type': 'TERM_MATCH',
-                        'Field': 'operatingSystem',
-                        'Value': 'RHEL'
-                    },
-                    {
-                        'Type': 'TERM_MATCH',
                         'Field': 'capacitystatus',
                         'Value': 'Used'
                     }
@@ -280,17 +272,6 @@ for region in regions:
                 instancefamily=instanceType[0:2]
                 
                 # Filter out the new m5d types
-                if (instanceType[0:3] == "m5d"):
-                    skip = True
-                    
-                if (instanceType[0:3] == "m5a"):
-                    skip = True
-                    
-                if (instanceType[0:2] == "c4"):
-                    skip = True
-                    
-                if (instanceType[0:3] == "c5d"):
-                    skip = True
                     
                 if (instanceType[0:2] == "t2"):
                     skip = True
@@ -298,7 +279,22 @@ for region in regions:
                 if (instanceType[0:2] == "m4"):
                     skip = True
                     
+                if(instanceType[0:2] == "c4"):
+                    skip = True
+                    
                 if (instanceType[0:2] == "t3"):
+                    skip = True
+                    
+                if (instanceType[2] =="d"):
+                    skip = True
+                    
+                if (instanceType[2] == "e"):
+                    skip = True
+                    
+                if (instanceType[0:2] == "r4"):
+                    skip = True
+                    
+                if(instanceType[2] == "a"):
                     skip = True
                 
                 if (skip != True):
@@ -347,7 +343,12 @@ for region in regions:
             
             dfInstanceList_sorted=dfInstanceList_sorted.reset_index(drop=True)
             
+            print(family,os,region)
+            
             dfCMDB_filter = dfCMDB[(dfCMDB.calc_family == family) & (dfCMDB.AWS_OS == os) & (dfCMDB.RDS == False) & (dfCMDB.AWS_Region == region)]
+            
+            print(dfCMDB_filter)
+            #raw_input()
             
             index=0
             
@@ -364,6 +365,7 @@ for region in regions:
                         dfCMDB.loc[index, 'one_hr_rate'] = dfInstanceList_sorted.loc[instance, 'one_hr_rate']
                         dfCMDB.loc[index, 'one_yr_rate'] = dfInstanceList_sorted.loc[instance, 'one_yr_rate']
                         dfCMDB.loc[index, 'three_yr_rate'] = dfInstanceList_sorted.loc[instance, 'three_yr_rate']
+                        print(found)
                         
                     instance = instance +1
                     
@@ -444,7 +446,12 @@ for region in regions:
                         'Type': 'TERM_MATCH',
                         'Field': 'licenseModel',
                         'Value': licensemodel            
-                    }, 
+                    },
+                    {
+                        'Type': 'TERM_MATCH',
+                        'Field': 'capacitystatus',
+                        'Value': 'Used'
+                    }
                     ],                
                     ServiceCode='AmazonRDS',
                     MaxResults=100
