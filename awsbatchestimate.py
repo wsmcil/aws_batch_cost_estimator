@@ -19,8 +19,8 @@ import boto3
 import re
 
 # Configuration variables
-fileInput='./requirements.csv'
-fileOutput='./aws_bom.csv'
+fileInput='../data/fcasap_requirements.csv'
+fileOutput='../data/aws_bom.csv'
 
 # Input column mappings
 
@@ -57,7 +57,7 @@ srcOSVer='OS Ver'
 awsWindows="Windows"
 awsRHEL="RHEL"
 awsSLES="SLES"
-awsDefault="SLES"
+awsDefault="Linux"
 
 # Compute families.  These are super families.  X and T are actually subfamilies in the pricing API
 awsComputeOptimized="Compute optimized"
@@ -81,7 +81,7 @@ awsAurora="Aurora MySQL"
 # Fixed rates for block storage
 ec2EBSUnitCost=.151
 rdsEBSUnitCost=.116
-srcBlockStorage='Block Storage GB'
+srcBlockStorage='Total File System  in GB'
 
 # Open input file, read into frame
 print("Reading input file....")
