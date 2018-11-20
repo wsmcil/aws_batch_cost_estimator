@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python2
 
 # AWS Batch Cost Estimator
 #
@@ -26,12 +26,12 @@ fileOutput='../data/aws_bom.csv'
 
 # Column which indicates source cores and peak load
 srcCores = 'vCPU'
-srcCPUUsage = 'CPU_Usage'
+srcCPUUsage = 'cpuUsage'
 
 # Column which indicates peak memory useage in GB
 # If srcMemUsed is blank or zero, the script will use srcMemProvsioned as the target memory
-srcMemProvisioned = 'Memory_GB'
-srcMemUsed = 'Memory_GB'
+srcMemProvisioned = 'Memory GB'
+srcMemUsed = 'Memory GB'
 
 # Columns indicating environment (dev, test, prod, etc.)
 srcEnv = 'Environment'
